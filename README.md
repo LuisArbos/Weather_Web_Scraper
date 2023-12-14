@@ -5,7 +5,10 @@ Once I have all the necessary information, I'll print it in a table using the ta
 
 ## Project Organization
 This project is organized in different blocks. 
--  Spider configuration, you can find it inside weatherScraper -> weatherScraper -> spiders.
+-  Spider configuration: (you can find it inside weatherScraper -> weatherScraper -> spiders)
+    - There is one function to let the spider know where it has to start.
+    - One function to scrape the main page looking for valid urls.
+    - One function to scrape the urls got and extract the infor we want.
 -  Visualization file, right now you can find the visualization in the visualize.py file, where you can check the basic table I'm currently using.
 
 ## Future Implementations
