@@ -1,12 +1,15 @@
 from typing import Any, Iterable
 import scrapy
-from scrapy.http import Request, Response
+import re
+from scrapy.http import Response
 from scrapy.item import Item, Field
-from scrapy.linkextractors import LinkExtractor
-from scrapy.spiders import Rule
-
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+
+global url_li
+url_li = []
+global li
+li = []
 
 class Conditions(Item):
     date = Field()
@@ -31,21 +34,37 @@ class Weather(Item):
     day_5 = Field()
     day_6 = Field()
 
-global li
-li = []
 
 
-class MySpider(scrapy.Spider):
-    name = "second_spider"
+
+class WeatherSpider(scrapy.Spider):
+    name = "weather_spider"
     allowed_domains = ['eltiempo.es']
-    start_urls = ['https://www.eltiempo.es/leon.html', 'https://www.eltiempo.es/zaragoza.html', 'https://www.eltiempo.es/tarragona.html']
-    rules = (
-        Rule(LinkExtractor(allow="castilla-y-leon"))
-    )
+    start_urls = ['https://www.eltiempo.es'] # ['https://www.eltiempo.es/zaragoza.html']
     
     handle_httpstatus_list = [403, 404, 500]
 
-    def parse(self, response):
+    def start_requests(self):
+        yield scrapy.Request(self.start_urls[0], callback=self.parse_urls)
+
+    def parse_urls(self, response):
+        urls = response.css('a::attr(href)').extract()
+
+        # This one is to get the urls that are city.html and the ones that start with https://www.eltiempo.es/something.html
+        city_pattern = re.compile(r'^/(.+)\.html$|https://www\.eltiempo\.es/(.+)\.html$') 
+                
+        city_urls = [url for url in urls if city_pattern.match(url)]
+
+        filtered_urls = [url for url in city_urls if "/legal/" not in url]
+
+        final_urls = [f'https://www.eltiempo.es{url}' if url.startswith('/') else url for url in filtered_urls]
+
+        for url in final_urls:
+            url_li.append(url)
+            yield scrapy.Request(url, callback=self.parse_city)
+         
+
+    def parse_city(self, response):
         if response.status in self.handle_httpstatus_list:
             self.log(f"Received a {response.status} response for URL: {response.url}")
         else:  
@@ -55,7 +74,7 @@ class MySpider(scrapy.Spider):
             weather_item = Weather()
             day_0_cond, day_1_cond, day_2_cond, day_3_cond, day_4_cond, day_5_cond, day_6_cond = Conditions(), Conditions(), Conditions(), Conditions(), Conditions(), Conditions(), Conditions()             
 
-            weather_item['city'] = response.css(".-itl::text").get().replace(" ", "").replace("\n", "")
+            weather_item['city'] = response.css(".-itl::text").get().replace("\n", "").lstrip().rstrip()
             weather_item['temp_now'] = response.css("span.c-tib-text.degrees::text").get()
             weather_item['wind_now'] = response.css('span.wind-text-value.velocity::text')[0].get() + response.css('span.wind-text-unit::text')[0].get()
 
@@ -148,18 +167,18 @@ class MySpider(scrapy.Spider):
             }
             li.append(item)
             print(item)
-            yield li
-            
+            # yield li
+
 def run_spider():
     process = CrawlerProcess({
         'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
     })
-    process.crawl(MySpider)
+    process.crawl(WeatherSpider)
     # the script will block here until the crawling is finished
     process.start()
-    
+    print(li)
     return li
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     run_spider()
     
