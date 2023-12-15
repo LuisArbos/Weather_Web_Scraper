@@ -1,7 +1,7 @@
 from typing import Any, Iterable
 import scrapy
 import re
-from scrapy.http import Response
+import datetime
 from scrapy.item import Item, Field
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
@@ -113,12 +113,17 @@ class WeatherSpider(scrapy.Spider):
         updated_img_val = [replacements.get(link, link) for link in hour_img_val]
         combined_keys = []
         current_date_index = 0
+        aux_counter = 0
 
         for hour in hour_check:
+            if hour_check[0] == "00:00" and hour == "00:00" and aux_counter == 0:
+                current_date_index = 0
+            elif hour == "00:00":
+                current_date_index += 1
             combined_key = hour_date[current_date_index] + "-" + hour
             combined_keys.append(combined_key)
-            if hour == "00:00":
-                current_date_index += 1
+            aux_counter += 1
+            
 
         hour_updated_dict = dict(zip(combined_keys, updated_img_val))
         # print(hour_updated_dict)
@@ -148,7 +153,9 @@ class WeatherSpider(scrapy.Spider):
                 # Find the index of the date in timelapse_list
                 index = [item['date'] for item in timelapse_list].index(date)
                 timelapse_list[index][field_name] = value
-        print(timelapse_list)
+        # print(timelapse_list)
+        for value in timelapse_list:
+            value['date'] = value['date'][0:2]+" "+value['date'][2:4]+" "+value['date'][6:]
         for url in final_urls:
             yield  scrapy.Request(url, callback=self.parse_city)
         
@@ -166,9 +173,25 @@ class WeatherSpider(scrapy.Spider):
             weather_item['city'] = response.css(".-itl::text").get().replace("\n", "").lstrip().rstrip()
             weather_item['temp_now'] = response.css("span.c-tib-text.degrees::text").get()
             weather_item['wind_now'] = response.css('span.wind-text-value.velocity::text')[0].get() + response.css('span.wind-text-unit::text')[0].get()
-            
+            dat_to_filter = {
+                "ENE" : "01",
+                "FEB" : "02",
+                "MAR" : "03",
+                "ABR" : "04",
+                "MAY" : "05",
+                "JUN" : "06",
+                "JUL" : "07",
+                "AGO" : "08",
+                "SEP" : "09",
+                "OCT" : "10",
+                "NOV" : "11",
+                "DIC" : "12",
+            }
+            current_year = str(datetime.datetime.now().year)
+
             for i in range(len(day_list)):
                 day_list[i]['date'] = response.css('.datetime').css('.text-roboto-condensed::text')[i].get().replace("\n", "").lstrip().rstrip()
+                day_list[i]['date'] = day_list[i]['date'].split(" ")[0] + " " + dat_to_filter.get(day_list[i]['date'].split(" ")[1], "") + " " + current_year[-2:]
                 day_list[i]['max_temp'] = response.css('div.text-poppins-medium.header-max-min').css('div.max-temperature')[i].css('span::text').get()
                 day_list[i]['min_temp'] = response.css('div.text-poppins-medium.header-max-min').css('div.min-temperature')[i].css('span::text').get()
                 day_list[i]['rain'] = response.css('tbody tr:nth-child(4)').css('td::text')[i+1].get()
@@ -192,17 +215,16 @@ class WeatherSpider(scrapy.Spider):
                 'city' : weather_item['city'],
                 'temp_now': weather_item['temp_now'],
                 'wind_now': weather_item['wind_now'],
-                'today': weather_item['day_0'],
-                'tomorrow' : weather_item['day_1'],
+                'day_0 (today)': weather_item['day_0'],
+                'day_1' : weather_item['day_1'],
                 'day_2': weather_item['day_2'],
                 'day_3': weather_item['day_3'],
                 'day_4': weather_item['day_4'],
                 'day_5': weather_item['day_5'],
-                'day_6': weather_item['day_6'],
-                              
+                'day_6': weather_item['day_6'],            
             }
             li.append(item)
-            print(item)
+            # print(item)
             # yield li   
 
 
