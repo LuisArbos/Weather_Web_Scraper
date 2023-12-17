@@ -171,8 +171,8 @@ class WeatherSpider(scrapy.Spider):
             day_list = [day_0_cond, day_1_cond, day_2_cond, day_3_cond, day_4_cond, day_5_cond, day_6_cond]
             
             weather_item['city'] = response.css(".-itl::text").get().replace("\n", "").lstrip().rstrip()
-            weather_item['temp_now'] = response.css("span.c-tib-text.degrees::text").get()
-            weather_item['wind_now'] = response.css('span.wind-text-value.velocity::text')[0].get() + response.css('span.wind-text-unit::text')[0].get()
+            weather_item['temp_now'] = response.css("span.c-tib-text.degrees::text").get()[:-1]
+            weather_item['wind_now'] = response.css('span.wind-text-value.velocity::text')[0].get().rstrip()
             dat_to_filter = {
                 "ENE" : "01",
                 "FEB" : "02",
@@ -192,11 +192,11 @@ class WeatherSpider(scrapy.Spider):
             for i in range(len(day_list)):
                 day_list[i]['date'] = response.css('.datetime').css('.text-roboto-condensed::text')[i].get().replace("\n", "").lstrip().rstrip()
                 day_list[i]['date'] = day_list[i]['date'].split(" ")[0] + " " + dat_to_filter.get(day_list[i]['date'].split(" ")[1], "") + " " + current_year[-2:]
-                day_list[i]['max_temp'] = response.css('div.text-poppins-medium.header-max-min').css('div.max-temperature')[i].css('span::text').get()
-                day_list[i]['min_temp'] = response.css('div.text-poppins-medium.header-max-min').css('div.min-temperature')[i].css('span::text').get()
-                day_list[i]['rain'] = response.css('tbody tr:nth-child(4)').css('td::text')[i+1].get()
-                day_list[i]['snow'] = response.css('tbody tr:nth-child(5)').css('td::text')[i+1].get()
-                day_list[i]['wind'] = response.css('tbody tr:nth-child(6)').css('.wind').css('.velocity')[i].css('span.wind-text-value::text').get() + response.css('tbody tr:nth-child(6)').css('.wind').css('.velocity')[i].css('span.wind-text-unit::text').get()
+                day_list[i]['max_temp'] = response.css('div.text-poppins-medium.header-max-min').css('div.max-temperature')[i].css('span::text').get()[:-1]
+                day_list[i]['min_temp'] = response.css('div.text-poppins-medium.header-max-min').css('div.min-temperature')[i].css('span::text').get()[:-1]
+                day_list[i]['rain'] = response.css('tbody tr:nth-child(4)').css('td::text')[i+1].get()[:-2].rstrip()
+                day_list[i]['snow'] = response.css('tbody tr:nth-child(5)').css('td::text')[i+1].get()[:-2].rstrip()
+                day_list[i]['wind'] = response.css('tbody tr:nth-child(6)').css('.wind').css('.velocity')[i].css('span.wind-text-value::text').get()
                 day_list[i]['sunrise'] = response.css('tbody tr:nth-child(7)').css('td::text')[i].get()
                 day_list[i]['sunset'] = response.css('tbody tr:nth-child(8)').css('td::text')[i].get()
                 if i<=3:
@@ -215,7 +215,7 @@ class WeatherSpider(scrapy.Spider):
                 'city' : weather_item['city'],
                 'temp_now': weather_item['temp_now'],
                 'wind_now': weather_item['wind_now'],
-                'day_0 (today)': weather_item['day_0'],
+                'day_0': weather_item['day_0'],
                 'day_1' : weather_item['day_1'],
                 'day_2': weather_item['day_2'],
                 'day_3': weather_item['day_3'],
