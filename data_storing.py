@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Foreign
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -19,6 +20,7 @@ class Weather(Base):
     CityID = Column(Integer, ForeignKey('City.CityID'))
     CurrentTemperature = Column(Float)
     CurrentWind = Column(Float)
+    Timestamp = Column(DateTime)
     city = relationship('City', back_populates='weather')
     day_info = relationship('Day', back_populates='weather')
 
@@ -66,25 +68,8 @@ def add_data(data):
     for item in data:
         #For the city table
         city_name = item.get('city')
-        
-        #For the weather table
-        current_temperature = item.get('temp_now')
-        current_temperature = current_temperature
-        current_wind = item.get('wind_now')
-        current_wind = current_wind.split(" ")
-        
-        #For the day table
-        date = item.get('day_0', {}).get('date')
-        maximum_temperature = item.get('day_0', {}).get('max_temp')
-        minimum_temperature = item.get('day_0', {}).get('min_temp')
-        rain = item.get('day_0', {}).get('rain')
-        snow = item.get('day_0', {}).get('snow')
-        sunrise = item.get('day_0', {}).get('sunrise')
-        sunset = item.get('day_0', {}).get('sunset')
-        print(date, "-", maximum_temperature, "-", minimum_temperature, "-", rain, "-", snow, "-", sunrise, "-", sunset)
-        #For the timelapse table
+        existing_city = session.query(City).filter(City.CityName == city_name).first()
 
-        """existing_city = session.query(City).filter(City.CityName == city_name).first()
         if existing_city:
             city_instance = existing_city
         else:
@@ -96,9 +81,56 @@ def add_data(data):
                 session.rollback()
                 print(f"City '{city_name}' already exists.")
 
-        weather_instance = Weather(CurrentTemperature = current_temperature, CurrentWind = current_wind, CityID = city_instance.CityID)
-        session.add(weather_instance)
-        session.commit()"""
+        #For the weather table
+        current_temperature = item.get('temp_now')
+        current_wind = item.get('wind_now')
+        timestamp = datetime.now().replace(minute=0, second=0, microsecond=0)
+        
+        existing_weather = session.query(Weather).filter(Weather.Timestamp == timestamp, Weather.CityID == city_instance.CityID).first()
+        if not existing_weather:
+            weather_instance = Weather(CurrentTemperature = current_temperature, CurrentWind = current_wind, CityID = city_instance.CityID, Timestamp = timestamp)
+            session.add(weather_instance)
+            session.commit()
+        else:
+            print("Duplicated entry found in weather. Skipping insertion.")
+
+        #For the day table
+        day_list = ['day_0', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5', 'day_6']
+        for day in day_list:
+            date_day = item.get(day, {}).get('date')
+            maximum_temperature = item.get(day, {}).get('max_temp')
+            minimum_temperature = item.get(day, {}).get('min_temp')
+            rain = item.get(day, {}).get('rain')
+            snow = item.get(day, {}).get('snow')
+            sunrise = item.get(day, {}).get('sunrise')
+            sunset = item.get(day, {}).get('sunset')
+            existing_day = session.query(Day).filter(Day.WeatherID == weather_instance.WeatherID, Day.Date == date_day).first()
+            if not existing_day:
+                day_instance = Day(WeatherID = weather_instance.WeatherID, Date = date_day, MaxTemp = maximum_temperature, MinTemp = minimum_temperature, Rain = rain, Snow = snow, Sunrise = sunrise, Sunset = sunset)
+                session.add(day_instance)
+                session.commit()
+            else:
+                print("Duplicated entry found in day. Skipping insertion")
+
+        #For the timelapse table
+            if item.get(day, {}).get('timelapse', {}).get('date') != None:
+                date_timelapse = item.get(day, {}).get('timelapse', {}).get('date')
+                h00 = str(item.get(day, {}).get('timelapse', {}).get('h00'))
+                h02 = str(item.get(day, {}).get('timelapse', {}).get('h02'))
+                h04 = str(item.get(day, {}).get('timelapse', {}).get('h04'))
+                h06 = str(item.get(day, {}).get('timelapse', {}).get('h06'))
+                h08 = str(item.get(day, {}).get('timelapse', {}).get('h08'))
+                h10 = str(item.get(day, {}).get('timelapse', {}).get('h10'))
+                h12 = str(item.get(day, {}).get('timelapse', {}).get('h12'))
+                h14 = str(item.get(day, {}).get('timelapse', {}).get('h14'))
+                h16 = str(item.get(day, {}).get('timelapse', {}).get('h16'))
+                h18 = str(item.get(day, {}).get('timelapse', {}).get('h18'))
+                h20 = str(item.get(day, {}).get('timelapse', {}).get('h20'))
+                h22 = str(item.get(day, {}).get('timelapse', {}).get('h22'))
+
+                timelapse_instance = Timelapse(DayID = day_instance.DayID, Date = date_timelapse, H00 = h00, H02 = h02, H04 = h04, H06 = h06, H08 = h08, H10 = h10, H12 = h12, H14 = h14, H16 = h16, H18 = h18, H20 = h20, H22 = h22)
+                session.add(timelapse_instance)
+                session.commit()
 
 # Query data
 result = session.query(City).all()

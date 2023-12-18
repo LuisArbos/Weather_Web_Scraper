@@ -91,24 +91,35 @@ class WeatherSpider(scrapy.Spider):
         hour_img_val = response.css('ul.days').css('li').css('img::attr(src)').getall()
         hour_date = response.css('h2.days-title.text-poppins-bold::attr(id)').getall()
         
-        timelapse_list = [
-            Timelapse(date=hour_date[0]),
-            Timelapse(date=hour_date[1]),
-            Timelapse(date=hour_date[2]),
-            Timelapse(date=hour_date[3]),
-        ]
+        if len(hour_date) == 3:
+            timelapse_list = [
+                Timelapse(date=hour_date[0]),
+                Timelapse(date=hour_date[1]),
+                Timelapse(date=hour_date[2]),
+            ]
+        elif len(hour_date) == 4:
+            timelapse_list = [
+                Timelapse(date=hour_date[0]),
+                Timelapse(date=hour_date[1]),
+                Timelapse(date=hour_date[2]),
+                Timelapse(date=hour_date[3]),
+            ]
 
         replacements = { # Pending
             "https://statics.eltiempo.es/images/weather/svg/v1/32/d000.svg": "Despejado",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/d100.svg": "Poco nuboso",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/d200.svg": "Poco nuboso",
-            "https://statics.eltiempo.es/images/weather/svg/v1/32/d210.svg": "Lluvias", # ????
+            "https://statics.eltiempo.es/images/weather/svg/v1/32/d210.svg": "Intervalos nubosos, chubascos débiles",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/d300.svg": "Nuboso",
+            "https://statics.eltiempo.es/images/weather/svg/v1/32/d400.svg": "Cubierto",
+            "https://statics.eltiempo.es/images/weather/svg/v1/32/d410.svg": "Cubierto, llovizna",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/n000.svg": "Despejado",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/n100.svg": "Poco nuboso",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/n200.svg": "Intervalos nubosos",
-            "https://statics.eltiempo.es/images/weather/svg/v1/32/n210.svg": "Lluvias", # ????
+            "https://statics.eltiempo.es/images/weather/svg/v1/32/n210.svg": "Intervalos nubosos, chubascos débiles",
             "https://statics.eltiempo.es/images/weather/svg/v1/32/n300.svg": "Nuboso",
+            "https://statics.eltiempo.es/images/weather/svg/v1/32/n400.svg": "Cubierto",
+            "https://statics.eltiempo.es/images/weather/svg/v1/32/n410.svg": "Cubierto, llovizna",
             } 
         updated_img_val = [replacements.get(link, link) for link in hour_img_val]
         combined_keys = []
@@ -118,11 +129,12 @@ class WeatherSpider(scrapy.Spider):
         for hour in hour_check:
             if hour_check[0] == "00:00" and hour == "00:00" and aux_counter == 0:
                 current_date_index = 0
+                aux_counter += 1
             elif hour == "00:00":
                 current_date_index += 1
+                aux_counter += 1
             combined_key = hour_date[current_date_index] + "-" + hour
             combined_keys.append(combined_key)
-            aux_counter += 1
             
 
         hour_updated_dict = dict(zip(combined_keys, updated_img_val))
@@ -167,7 +179,6 @@ class WeatherSpider(scrapy.Spider):
             weather_item = Weather()
             day_0_cond, day_1_cond, day_2_cond, day_3_cond, day_4_cond, day_5_cond, day_6_cond = Conditions(), Conditions(), Conditions(), Conditions(), Conditions(), Conditions(), Conditions()             
             
-
             day_list = [day_0_cond, day_1_cond, day_2_cond, day_3_cond, day_4_cond, day_5_cond, day_6_cond]
             
             weather_item['city'] = response.css(".-itl::text").get().replace("\n", "").lstrip().rstrip()
@@ -199,7 +210,7 @@ class WeatherSpider(scrapy.Spider):
                 day_list[i]['wind'] = response.css('tbody tr:nth-child(6)').css('.wind').css('.velocity')[i].css('span.wind-text-value::text').get()
                 day_list[i]['sunrise'] = response.css('tbody tr:nth-child(7)').css('td::text')[i].get()
                 day_list[i]['sunset'] = response.css('tbody tr:nth-child(8)').css('td::text')[i].get()
-                if i<=3:
+                if i<len(timelapse_list):
                     day_list[i]['timelapse'] = timelapse_list[i]
 
             weather_item['day_0'] = day_0_cond
@@ -233,7 +244,6 @@ def run_spider():
         'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
     })
     process.crawl(WeatherSpider)
-    # the script will block here until the crawling is finished
     process.start()
     print(li)
     return li
