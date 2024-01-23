@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Foreign
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime
+from datetime import datetime, timedelta
 
 Base = declarative_base()
 
@@ -63,6 +63,12 @@ Base.metadata.create_all(engine)
 #Create the session
 Session = sessionmaker(bind=engine)
 session = Session()
+
+def should_run_data_storing():
+    last_weather_entry = session.query(Weather).order_by(Weather.Timestamp.desc()).first()
+    if not last_weather_entry or last_weather_entry.Timestamp < (datetime.now() - timedelta(hours=2)):
+        return True
+    return False
 
 def add_data(data):
     for item in data:
@@ -134,8 +140,6 @@ def add_data(data):
 
 # Query data
 result = session.query(City).all()
-for row in result:
-    print(row.CityID, row.CityName)
 
 # Close the session
 session.close()
